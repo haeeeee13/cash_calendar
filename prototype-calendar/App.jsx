@@ -431,54 +431,63 @@ const App = () => {
                   text: isSelected ? 'text-blue-600' : isTodayCell ? 'text-blue-500' : 'text-gray-400',
                   bar: '',
                   icon: '',
+                  iconClass: '',
                 },
                 fortune_normal: {
                   cell: isSelected ? 'border-blue-400 ring-4 ring-blue-100 bg-gradient-to-br from-sky-50 to-blue-50 shadow-sm scale-105' : 'border-blue-100 bg-gradient-to-br from-sky-50 to-blue-50 shadow-[0_8px_16px_rgba(59,130,246,0.10)]',
                   text: 'text-blue-700',
                   bar: 'bg-gradient-to-r from-sky-300 to-blue-400',
                   icon: '🍀',
+                  iconClass: 'text-[13px]',
                 },
                 fortune_rare: {
                   cell: isSelected ? 'border-violet-400 ring-4 ring-violet-100 bg-gradient-to-br from-violet-50 via-fuchsia-50 to-rose-50 shadow-sm scale-105' : 'border-violet-200 bg-gradient-to-br from-violet-50 via-fuchsia-50 to-rose-50 shadow-[0_8px_16px_rgba(168,85,247,0.14)]',
                   text: 'text-violet-700',
                   bar: 'bg-gradient-to-r from-violet-300 via-fuchsia-300 to-rose-300',
                   icon: '👑',
+                  iconClass: 'text-[13px]',
                 },
                 schedule_normal: {
                   cell: isSelected ? 'border-emerald-400 ring-4 ring-emerald-100 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 shadow-sm scale-105' : 'border-emerald-200 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 shadow-[0_8px_16px_rgba(16,185,129,0.12)]',
                   text: 'text-emerald-700',
                   bar: 'bg-gradient-to-r from-emerald-300 via-teal-300 to-cyan-300',
                   icon: '🎯',
+                  iconClass: 'text-[13px]',
                 },
                 schedule_rare: {
                   cell: isSelected ? 'border-orange-400 ring-4 ring-orange-100 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 shadow-sm scale-105' : 'border-orange-200 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 shadow-[0_8px_16px_rgba(251,146,60,0.14)]',
                   text: 'text-orange-700',
                   bar: 'bg-gradient-to-r from-orange-300 via-amber-400 to-yellow-300',
                   icon: '⭐',
+                  iconClass: 'text-[13px]',
                 },
                 fortune_normal_schedule_normal: {
                   cell: isSelected ? 'border-cyan-400 ring-4 ring-cyan-100 bg-gradient-to-br from-sky-50 via-teal-50 to-cyan-50 shadow-sm scale-105' : 'border-cyan-200 bg-gradient-to-br from-sky-50 via-teal-50 to-cyan-50 shadow-[0_8px_16px_rgba(34,211,238,0.12)]',
                   text: 'text-cyan-700',
                   bar: 'bg-gradient-to-r from-sky-300 via-teal-300 to-cyan-300',
                   icon: '🍀🎯',
+                  iconClass: 'text-[11px] tracking-[-0.12em]',
                 },
                 fortune_normal_schedule_rare: {
                   cell: isSelected ? 'border-amber-400 ring-4 ring-amber-100 bg-gradient-to-br from-sky-50 via-orange-50 to-yellow-50 shadow-sm scale-105' : 'border-amber-200 bg-gradient-to-br from-sky-50 via-orange-50 to-yellow-50 shadow-[0_8px_16px_rgba(245,158,11,0.14)]',
                   text: 'text-amber-700',
                   bar: 'bg-gradient-to-r from-sky-300 via-orange-300 to-yellow-300',
                   icon: '🍀⭐',
+                  iconClass: 'text-[11px] tracking-[-0.08em]',
                 },
                 fortune_rare_schedule_normal: {
                   cell: isSelected ? 'border-fuchsia-400 ring-4 ring-fuchsia-100 bg-gradient-to-br from-violet-50 via-emerald-50 to-cyan-50 shadow-sm scale-105' : 'border-fuchsia-200 bg-gradient-to-br from-violet-50 via-emerald-50 to-cyan-50 shadow-[0_8px_16px_rgba(217,70,239,0.12)]',
                   text: 'text-fuchsia-700',
                   bar: 'bg-gradient-to-r from-violet-300 via-emerald-300 to-cyan-300',
                   icon: '👑🎯',
+                  iconClass: 'text-[11px] tracking-[-0.08em]',
                 },
                 fortune_rare_schedule_rare: {
                   cell: isSelected ? 'border-fuchsia-400 ring-4 ring-fuchsia-100 bg-gradient-to-br from-amber-100 via-fuchsia-50 to-rose-100 shadow-sm scale-105' : 'border-fuchsia-200 bg-gradient-to-br from-amber-100 via-fuchsia-50 to-rose-100 shadow-[0_10px_18px_rgba(217,70,239,0.18)]',
                   text: 'text-fuchsia-700',
                   bar: 'bg-gradient-to-r from-yellow-300 via-fuchsia-400 to-rose-400',
                   icon: '👑⭐',
+                  iconClass: 'text-[11px] tracking-[-0.08em]',
                 },
               };
               const style = stateMap[calendarState];
@@ -486,11 +495,11 @@ const App = () => {
                 <button
                   key={dateObj.key}
                   onClick={() => setSelectedDateKey(dateObj.key)}
-                  className={`h-14 rounded-2xl border transition-all flex flex-col items-center justify-center relative overflow-hidden ${style.cell}`}
+                  className={`h-14 rounded-2xl border transition-all flex flex-col items-center justify-start pt-2.5 pb-1 relative overflow-hidden ${style.cell}`}
                 >
-                  {style.bar && <div className={`absolute inset-x-2 top-1 h-1 rounded-full opacity-90 ${style.bar}`}></div>}
-                  <span className={`text-[11px] font-black ${style.text}`}>{dateObj.day}</span>
-                  {style.icon && <div className="mt-0.5 text-sm">{style.icon}</div>}
+                  {style.bar && <div className={`absolute inset-x-2 top-1 h-0.5 rounded-full opacity-90 ${style.bar}`}></div>}
+                  <span className={`text-[11px] leading-none font-black ${style.text}`}>{dateObj.day}</span>
+                  {style.icon && <div className={`mt-1 leading-none ${style.iconClass}`}>{style.icon}</div>}
                 </button>
               );
             })}
