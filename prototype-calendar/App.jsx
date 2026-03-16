@@ -26,6 +26,12 @@ const App = () => {
     { icon: '💼', label: '미팅·업무' }, { icon: '✈️', label: '여행·나들이' },
     { icon: '💪', label: '공부·운동' }, { icon: '✨', label: '소소한 일상' }
   ];
+  const weatherByOffset = {
+    0: '☀️ 맑음, 15°C',
+    1: '🌤️ 구름조금, 16°C',
+    2: '⛅ 흐림, 14°C',
+    3: '🌦️ 봄비, 13°C',
+  };
 
   // 1. 상태 관리
   const [points, setPoints] = useState(1250);
@@ -41,6 +47,7 @@ const App = () => {
   const [activeScheduleId, setActiveScheduleId] = useState(null);
   const [preparingMsg, setPreparingMsg] = useState(null);
   const [claimedBonuses, setClaimedBonuses] = useState({ day3: false, day7: false });
+  const [isEditingRecord, setIsEditingRecord] = useState(false);
   
   // [초기 데이터]
   const [allRecords, setAllRecords] = useState({
@@ -72,10 +79,13 @@ const App = () => {
     const tod = new Date(todayKey);
     sel.setHours(0,0,0,0);
     tod.setHours(0,0,0,0);
+    const diffDays = Math.round((sel.getTime() - tod.getTime()) / (1000 * 60 * 60 * 24));
     return {
       isToday: selectedDateKey === todayKey,
       isPast: sel < tod,
-      isFuture: sel > tod
+      isFuture: sel > tod,
+      diffDays,
+      canPreviewWeather: diffDays >= 0 && diffDays <= 3,
     };
   }, [selectedDateKey, todayKey]);
 
@@ -109,26 +119,48 @@ const App = () => {
   const currentRecord = allRecords[selectedDateKey] || { recorded: false };
   const currentSchedules = allSchedules[selectedDateKey] || [];
   const isThirdDayBonusReady = streak[2] && !claimedBonuses.day3;
+  const hasActualRecord = Boolean(currentRecord.recorded && !currentRecord.previewOnly);
+  const isFuturePreview = Boolean(currentRecord.previewOnly);
+  const isTodayCheckComplete = streak[2];
+  const canSubmitTodayRecord = Boolean(tempInput.mood);
 
-  const getCalendarToneForDate = (dateKey) => {
+  const getCalendarStateForDate = (dateKey) => {
     const record = allRecords[dateKey];
     const schedules = allSchedules[dateKey] || [];
     const hasRareRecord = Boolean(record?.specialClaimed);
     const hasRareSchedule = schedules.some((schedule) => schedule.isRare);
+    const hasNormalSchedule = schedules.some((schedule) => schedule.cheered && !schedule.isRare);
+    const hasRecordedTodayFortune = Boolean(record?.recorded);
+    const hasNormalRecord = hasRecordedTodayFortune && !hasRareRecord;
 
-    if (hasRareRecord && hasRareSchedule) return 'legend';
-    if (hasRareRecord) return 'special';
-    return 'normal';
+    if (hasRareRecord && hasRareSchedule) return 'fortune_rare_schedule_rare';
+    if (hasRareRecord && hasNormalSchedule) return 'fortune_rare_schedule_normal';
+    if (hasNormalRecord && hasRareSchedule) return 'fortune_normal_schedule_rare';
+    if (hasNormalRecord && hasNormalSchedule) return 'fortune_normal_schedule_normal';
+    if (hasRareRecord) return 'fortune_rare';
+    if (hasNormalRecord) return 'fortune_normal';
+    if (hasRareSchedule) return 'schedule_rare';
+    if (hasNormalSchedule) return 'schedule_normal';
+    return 'empty';
   };
 
   const getFutureButtonText = useMemo(() => {
     const sel = new Date(selectedDateKey);
+    const diffDays = dateInfo.diffDays;
+    const suffix = dateInfo.canPreviewWeather ? '운세와 날씨 무료 확인' : '운세 무료 확인';
+    if (diffDays === 1) return `내일 ${suffix}`;
+    if (diffDays === 2) return `모레 ${suffix}`;
+    return `${sel.getMonth() + 1}월 ${sel.getDate()}일 ${suffix}`;
+  }, [dateInfo.canPreviewWeather, dateInfo.diffDays, selectedDateKey]);
+
+  const getWeatherForDate = (dateKey) => {
+    const sel = new Date(dateKey);
     const tod = new Date(todayKey);
+    sel.setHours(0,0,0,0);
+    tod.setHours(0,0,0,0);
     const diffDays = Math.round((sel.getTime() - tod.getTime()) / (1000 * 60 * 60 * 24));
-    if (diffDays === 1) return '내일 운세와 날씨 무료 확인';
-    if (diffDays === 2) return '모레 운세와 날씨 무료 확인';
-    return `${sel.getMonth() + 1}월 ${sel.getDate()}일 운세와 날씨 무료 확인`;
-  }, [selectedDateKey, todayKey]);
+    return weatherByOffset[diffDays] || '🌥️ 날씨 준비중';
+  };
 
   // 핸들러
   const handleTabClick = (tab) => {
@@ -160,8 +192,24 @@ const App = () => {
   };
 
   const handleOpenRecording = (isEdit = false) => {
-    setTempInput(isEdit || currentRecord.recorded ? { mood: currentRecord.mood, note: currentRecord.note } : { mood: null, note: '' });
+    setIsEditingRecord(isEdit);
+    setTempInput(isEdit || hasActualRecord ? { mood: currentRecord.mood, note: currentRecord.note } : { mood: null, note: '' });
     setView('recording');
+  };
+
+  const handleSaveRecordEdit = () => {
+    setAllRecords(prev => ({
+      ...prev,
+      [selectedDateKey]: {
+        ...(prev[selectedDateKey] || {}),
+        mood: tempInput.mood,
+        note: tempInput.note,
+      }
+    }));
+    setPreparingMsg('기록이 수정되었습니다.');
+    setTimeout(() => setPreparingMsg(null), 2000);
+    setIsEditingRecord(false);
+    setView('main');
   };
 
   const handleDeleteRecord = () => {
@@ -174,7 +222,6 @@ const App = () => {
     const label = newSchedule.category.split(' ')[1];
     const item = { ...newSchedule, title: label, id: Date.now(), cheered: false, sticker: null, isRare: false, fortune: null };
     setAllSchedules(prev => ({ ...prev, [selectedDateKey]: [...(prev[selectedDateKey] || []), item] }));
-    if (selectedDateKey === todayKey) setStreak([true, true, true, false, false, false, false]);
     setView('main');
   };
 
@@ -215,12 +262,22 @@ const App = () => {
     if (purpose === 'today' || purpose === 'future_preview') {
       setPoints(prev => prev + 1);
       const fortuneMsg = "성실한 당신의 태도가 운을 부르고 있네요.";
+      const weather = dateInfo.canPreviewWeather ? getWeatherForDate(selectedDateKey) : null;
       setAllRecords(prev => ({ 
         ...prev, 
-        [selectedDateKey]: { ...(prev[selectedDateKey] || {}), mood: purpose === 'future_preview' ? 'normal' : tempInput.mood, note: purpose === 'future_preview' ? '' : tempInput.note, fortune: fortuneMsg, recorded: true, sticker: randomItem, weather: "☀️ 맑음, 15°C" } 
+        [selectedDateKey]: {
+          ...(prev[selectedDateKey] || {}),
+          mood: purpose === 'future_preview' ? null : tempInput.mood,
+          note: purpose === 'future_preview' ? '' : tempInput.note,
+          fortune: fortuneMsg,
+          recorded: true,
+          previewOnly: purpose === 'future_preview',
+          sticker: randomItem,
+          weather
+        } 
       }));
-      setLastReward({ type: 'today_summary', amount: 1, item: randomItem, title: '보상 도착!', desc: fortuneMsg, canUpgrade: true, weather: "☀️ 맑음, 15°C" });
-      if (dateInfo.isToday) setStreak([true, true, true, false, false, false, false]);
+      setLastReward({ type: 'today_summary', amount: 1, item: randomItem, title: '보상 도착!', desc: fortuneMsg, canUpgrade: true, weather });
+      if (purpose === 'today' && dateInfo.isToday) setStreak([true, true, true, false, false, false, false]);
     } else if (purpose === 'today_special') {
       setPoints(prev => prev + 2);
       setAllRecords(prev => ({ ...prev, [selectedDateKey]: { ...(prev[selectedDateKey] || {}), specialClaimed: true, specialSticker: randomSpecial } }));
@@ -251,6 +308,7 @@ const App = () => {
         return { ...prev, [selectedDateKey]: updated };
       });
       setLastReward({ type: 'sticker', item: isUpgrade ? randomSpecial : (target?.sticker || randomItem), title: isUpgrade ? '강화 완료!' : '일정 행운 도착!', desc: String(finalDesc), amount: addedPoints, canUpgrade: !isUpgrade, scheduleId: targetId });
+      if (purpose === 'schedule_cheer' && selectedDateKey === todayKey) setStreak([true, true, true, false, false, false, false]);
     }
   };
 
@@ -296,15 +354,16 @@ const App = () => {
 
       <main className="flex-1 overflow-y-auto p-4 space-y-6 pb-16 no-scrollbar">
         <section className="bg-white rounded-3xl p-5 shadow-sm border border-gray-100">
-            <div className="flex justify-between items-center mb-4 px-1"><h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today Check Streak</h2><div className="text-[10px] text-blue-600 font-bold bg-blue-50 px-3 py-1 rounded-full shrink-0">오늘 액션하면 1칸 적립</div></div>
+            <div className="flex justify-between items-center mb-4 px-1"><h2 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Today Check Streak</h2><div className={`text-[10px] font-bold px-3 py-1 rounded-full shrink-0 ${isTodayCheckComplete ? 'text-emerald-700 bg-emerald-50' : 'text-orange-600 bg-orange-50'}`}>{isTodayCheckComplete ? '오늘 출석 완료' : '오늘 출석 전'}</div></div>
             <div className="mb-4 px-1">
-                <p className="text-sm font-black text-gray-800 break-keep">오늘 기록하거나 오늘 일정을 등록하면 출석이 쌓여요.</p>
+                <p className="text-sm font-black text-gray-800 break-keep">오늘 기록 보상을 받거나 오늘 일정 응원을 받으면 출석이 쌓여요.</p>
             </div>
             <div className="flex justify-between items-center px-1">
                 {streak.map((done, idx) => {
                   const isBonusDay = idx === 2 || idx === 6;
                   const isUpcomingBonusDay = (idx === 2 || idx === 6) && !done;
                   const isClaimedBonusDay = (idx === 2 && claimedBonuses.day3) || (idx === 6 && claimedBonuses.day7);
+                  const isTodaySlot = idx === 2;
 
                   return (
                     <div
@@ -312,12 +371,14 @@ const App = () => {
                       className={`w-9 h-9 rounded-2xl border-2 flex items-center justify-center transition-all relative ${
                         done
                           ? 'bg-blue-600 border-blue-600 text-white shadow-lg'
+                          : isTodaySlot
+                            ? 'bg-orange-50 border-orange-200 text-orange-500'
                           : isUpcomingBonusDay
                             ? 'bg-orange-50 border-orange-200 text-orange-500'
                             : 'bg-gray-50 border-gray-50 text-gray-200'
                       }`}
                     >
-                      {done ? <CheckCircle className="w-5 h-5 animate-in zoom-in" /> : <span className="text-xs font-black">{idx + 1}</span>}
+                      {done ? <CheckCircle className="w-5 h-5 animate-in zoom-in" /> : <span className="text-[10px] font-black">{isTodaySlot ? '오늘' : idx + 1}</span>}
                       {isBonusDay && (
                         <div className={`absolute -bottom-2 px-1.5 py-0.5 rounded-full text-[7px] font-black border ${
                           isClaimedBonusDay
@@ -335,7 +396,7 @@ const App = () => {
                   );
                 })}
             </div>
-            {selectedDateKey === todayKey && isThirdDayBonusReady && (
+            {isThirdDayBonusReady && (
               <button onClick={handleClaimThirdDayBonus} className="mt-5 w-full bg-gradient-to-r from-orange-500 to-yellow-500 text-white py-4 rounded-[1.5rem] font-black shadow-lg active:scale-95 transition-all">
                 3일차 보너스 받기
               </button>
@@ -361,48 +422,75 @@ const App = () => {
             {['월','화','수','목','금','토','일'].map(d => <div key={d} className="text-center text-[10px] text-gray-300 font-black uppercase">{d}</div>)}
             {calendarDays.map((dateObj, idx) => {
               if (!dateObj) return <div key={`empty-${idx}`} className="h-14"></div>;
-              const record = allRecords[dateObj.key];
               const isSelected = selectedDateKey === dateObj.key;
               const isTodayCell = dateObj.key === todayKey;
-              const calendarTone = getCalendarToneForDate(dateObj.key);
-              const isSpecialTone = calendarTone === 'special';
-              const isLegendTone = calendarTone === 'legend';
+              const calendarState = getCalendarStateForDate(dateObj.key);
+              const stateMap = {
+                empty: {
+                  cell: isSelected ? 'border-blue-500 ring-4 ring-blue-50 bg-white shadow-sm scale-105' : 'border-transparent bg-gray-50/50',
+                  text: isSelected ? 'text-blue-600' : isTodayCell ? 'text-blue-500' : 'text-gray-400',
+                  bar: '',
+                  icon: '',
+                },
+                fortune_normal: {
+                  cell: isSelected ? 'border-blue-400 ring-4 ring-blue-100 bg-gradient-to-br from-sky-50 to-blue-50 shadow-sm scale-105' : 'border-blue-100 bg-gradient-to-br from-sky-50 to-blue-50 shadow-[0_8px_16px_rgba(59,130,246,0.10)]',
+                  text: 'text-blue-700',
+                  bar: 'bg-gradient-to-r from-sky-300 to-blue-400',
+                  icon: '🍀',
+                },
+                fortune_rare: {
+                  cell: isSelected ? 'border-violet-400 ring-4 ring-violet-100 bg-gradient-to-br from-violet-50 via-fuchsia-50 to-rose-50 shadow-sm scale-105' : 'border-violet-200 bg-gradient-to-br from-violet-50 via-fuchsia-50 to-rose-50 shadow-[0_8px_16px_rgba(168,85,247,0.14)]',
+                  text: 'text-violet-700',
+                  bar: 'bg-gradient-to-r from-violet-300 via-fuchsia-300 to-rose-300',
+                  icon: '👑',
+                },
+                schedule_normal: {
+                  cell: isSelected ? 'border-emerald-400 ring-4 ring-emerald-100 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 shadow-sm scale-105' : 'border-emerald-200 bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 shadow-[0_8px_16px_rgba(16,185,129,0.12)]',
+                  text: 'text-emerald-700',
+                  bar: 'bg-gradient-to-r from-emerald-300 via-teal-300 to-cyan-300',
+                  icon: '🎯',
+                },
+                schedule_rare: {
+                  cell: isSelected ? 'border-orange-400 ring-4 ring-orange-100 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 shadow-sm scale-105' : 'border-orange-200 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 shadow-[0_8px_16px_rgba(251,146,60,0.14)]',
+                  text: 'text-orange-700',
+                  bar: 'bg-gradient-to-r from-orange-300 via-amber-400 to-yellow-300',
+                  icon: '⭐',
+                },
+                fortune_normal_schedule_normal: {
+                  cell: isSelected ? 'border-cyan-400 ring-4 ring-cyan-100 bg-gradient-to-br from-sky-50 via-teal-50 to-cyan-50 shadow-sm scale-105' : 'border-cyan-200 bg-gradient-to-br from-sky-50 via-teal-50 to-cyan-50 shadow-[0_8px_16px_rgba(34,211,238,0.12)]',
+                  text: 'text-cyan-700',
+                  bar: 'bg-gradient-to-r from-sky-300 via-teal-300 to-cyan-300',
+                  icon: '🍀🎯',
+                },
+                fortune_normal_schedule_rare: {
+                  cell: isSelected ? 'border-amber-400 ring-4 ring-amber-100 bg-gradient-to-br from-sky-50 via-orange-50 to-yellow-50 shadow-sm scale-105' : 'border-amber-200 bg-gradient-to-br from-sky-50 via-orange-50 to-yellow-50 shadow-[0_8px_16px_rgba(245,158,11,0.14)]',
+                  text: 'text-amber-700',
+                  bar: 'bg-gradient-to-r from-sky-300 via-orange-300 to-yellow-300',
+                  icon: '🍀⭐',
+                },
+                fortune_rare_schedule_normal: {
+                  cell: isSelected ? 'border-fuchsia-400 ring-4 ring-fuchsia-100 bg-gradient-to-br from-violet-50 via-emerald-50 to-cyan-50 shadow-sm scale-105' : 'border-fuchsia-200 bg-gradient-to-br from-violet-50 via-emerald-50 to-cyan-50 shadow-[0_8px_16px_rgba(217,70,239,0.12)]',
+                  text: 'text-fuchsia-700',
+                  bar: 'bg-gradient-to-r from-violet-300 via-emerald-300 to-cyan-300',
+                  icon: '👑🎯',
+                },
+                fortune_rare_schedule_rare: {
+                  cell: isSelected ? 'border-fuchsia-400 ring-4 ring-fuchsia-100 bg-gradient-to-br from-amber-100 via-fuchsia-50 to-rose-100 shadow-sm scale-105' : 'border-fuchsia-200 bg-gradient-to-br from-amber-100 via-fuchsia-50 to-rose-100 shadow-[0_10px_18px_rgba(217,70,239,0.18)]',
+                  text: 'text-fuchsia-700',
+                  bar: 'bg-gradient-to-r from-yellow-300 via-fuchsia-400 to-rose-400',
+                  icon: '👑⭐',
+                },
+              };
+              const style = stateMap[calendarState];
               return (
                 <button
                   key={dateObj.key}
                   onClick={() => setSelectedDateKey(dateObj.key)}
-                  className={`h-14 rounded-2xl border transition-all flex flex-col items-center justify-center relative overflow-hidden ${
-                    isSelected
-                      ? isLegendTone
-                        ? 'border-fuchsia-400 ring-4 ring-fuchsia-100 bg-gradient-to-br from-amber-100 via-fuchsia-50 to-rose-100 shadow-sm scale-105'
-                        : isSpecialTone
-                          ? 'border-violet-400 ring-4 ring-violet-100 bg-gradient-to-br from-violet-50 via-fuchsia-50 to-rose-50 shadow-sm scale-105'
-                          : 'border-blue-500 ring-4 ring-blue-50 bg-white shadow-sm scale-105'
-                      : isLegendTone
-                        ? 'border-fuchsia-200 bg-gradient-to-br from-amber-100 via-fuchsia-50 to-rose-100 shadow-[0_10px_18px_rgba(217,70,239,0.18)]'
-                        : isSpecialTone
-                          ? 'border-violet-200 bg-gradient-to-br from-violet-50 via-fuchsia-50 to-rose-50 shadow-[0_8px_16px_rgba(168,85,247,0.14)]'
-                        : 'border-transparent bg-gray-50/50'
-                  }`}
+                  className={`h-14 rounded-2xl border transition-all flex flex-col items-center justify-center relative overflow-hidden ${style.cell}`}
                 >
-                  {isLegendTone && <div className="absolute inset-x-2 top-1 h-1 rounded-full bg-gradient-to-r from-yellow-300 via-fuchsia-400 to-rose-400 opacity-90"></div>}
-                  {isSpecialTone && <div className="absolute inset-x-2 top-1 h-1 rounded-full bg-gradient-to-r from-violet-300 via-fuchsia-300 to-rose-300 opacity-90"></div>}
-                  <span className={`text-[11px] font-black ${
-                    isSelected
-                      ? isLegendTone
-                        ? 'text-fuchsia-700'
-                        : isSpecialTone
-                          ? 'text-violet-700'
-                          : 'text-blue-600'
-                      : isLegendTone
-                        ? 'text-fuchsia-700'
-                        : isSpecialTone
-                          ? 'text-violet-700'
-                          : isTodayCell
-                            ? 'text-blue-500'
-                            : 'text-gray-400'
-                  }`}>{dateObj.day}</span>
-                  {record?.recorded && <div className="mt-0.5 text-sm">{isLegendTone ? '👑✨' : record.specialClaimed ? '👑' : '🍀'}</div>}
+                  {style.bar && <div className={`absolute inset-x-2 top-1 h-1 rounded-full opacity-90 ${style.bar}`}></div>}
+                  <span className={`text-[11px] font-black ${style.text}`}>{dateObj.day}</span>
+                  {style.icon && <div className="mt-0.5 text-sm">{style.icon}</div>}
                 </button>
               );
             })}
@@ -411,12 +499,20 @@ const App = () => {
 
         <div className="space-y-4">
             <h3 className="font-bold text-gray-800 flex items-center gap-2 px-1"><Smile className={`w-5 h-5 ${dateInfo.isFuture ? 'text-purple-500' : 'text-blue-600'}`} /> {dateInfo.isToday ? '오늘의 기록' : dateInfo.isPast ? '과거의 기록' : '미래의 행운'}</h3>
-            {currentRecord.recorded ? (
+            {hasActualRecord ? (
                 <div className={`bg-white rounded-[2.5rem] border p-6 shadow-sm space-y-6 animate-in fade-in duration-500 ${currentRecord.specialClaimed ? 'border-yellow-200 gradient-rare' : 'border-gray-100'}`}>
                     <div className="flex items-start gap-4">
                         <div className="w-16 h-16 bg-white rounded-[1.5rem] flex items-center justify-center text-4xl shadow-sm border border-gray-50">{moodIcons[currentRecord.mood] || '🙂'}</div>
                         <div className="flex-1">
-                            <div className="flex justify-between items-center mb-1"><p className="text-[10px] font-black text-gray-300 uppercase tracking-tighter">Diary Log</p>{currentRecord.weather && <span className="text-[10px] font-bold text-gray-400 italic">{currentRecord.weather}</span>}</div>
+                            <div className="flex justify-between items-center mb-1">
+                              <p className="text-[10px] font-black text-gray-300 uppercase tracking-tighter">Diary Log</p>
+                              <div className="flex items-center gap-2">
+                                {currentRecord.weather && <span className="text-[10px] font-bold text-gray-400 italic">{currentRecord.weather}</span>}
+                                <button onClick={() => handleOpenRecording(true)} className="w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 active:scale-95 transition-all">
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
                             <p className="text-sm text-gray-700 italic leading-relaxed break-keep">"{currentRecord.note || "작성된 메모가 없습니다."}"</p>
                         </div>
                     </div>
@@ -455,11 +551,61 @@ const App = () => {
                         </div>
                     </div>
                 </div>
+            ) : isFuturePreview ? (
+                <div className="bg-white rounded-[2.5rem] border border-indigo-100 p-6 shadow-sm space-y-5 animate-in fade-in duration-500">
+                    <div className="flex items-start gap-4">
+                        <div className="w-16 h-16 bg-indigo-50 rounded-[1.5rem] flex items-center justify-center text-3xl shadow-sm border border-indigo-100">🔮</div>
+                        <div className="flex-1">
+                            <div className="flex justify-between items-center mb-1">
+                              <p className="text-[10px] font-black text-indigo-300 uppercase tracking-tighter">Fortune Preview</p>
+                              {currentRecord.weather && <span className="text-[10px] font-bold text-indigo-400 italic">{currentRecord.weather}</span>}
+                            </div>
+                            <p className="text-sm text-gray-600 leading-relaxed break-keep">미리 확인한 운세가 표시되고 있어요.</p>
+                        </div>
+                    </div>
+                    <div className="rounded-3xl border-2 p-5 bg-indigo-50/60 border-indigo-100 shadow-inner relative overflow-hidden">
+                        <div className="flex flex-col gap-5 relative z-10">
+                            <div className="space-y-1.5">
+                                <p className="text-[10px] font-black text-indigo-400 italic mb-1 flex items-center gap-1"><Sparkles className="w-3 h-3" /> Preview Fortune</p>
+                                <p className="text-[13px] font-bold text-indigo-900 leading-relaxed break-keep">"{currentRecord.fortune}"</p>
+                            </div>
+                            <div className="pt-4 border-t border-indigo-100/70">
+                                <div className="flex items-center gap-3">
+                                    <div className="flex-1 aspect-square max-w-[70px] bg-white rounded-2xl flex flex-col items-center justify-center border-2 border-indigo-50 shadow-sm relative">
+                                        <span className="text-2xl">{currentRecord.sticker || '🍀'}</span>
+                                        <div className="absolute -bottom-2 bg-gray-100 px-2 py-0.5 rounded-full shadow-sm"><span className="text-[7px] font-black text-gray-400 uppercase">Normal</span></div>
+                                    </div>
+                                    {currentRecord.specialClaimed ? (
+                                        <div className="flex-1 aspect-square max-w-[70px] bg-gradient-to-br from-yellow-300 to-orange-400 rounded-2xl flex flex-col items-center justify-center border-2 border-white shadow-lg animate-in zoom-in relative">
+                                            <span className="text-2xl">{currentRecord.specialSticker}</span>
+                                            <div className="absolute -bottom-2 bg-orange-500 px-2 py-0.5 rounded-full border border-white"><span className="text-[7px] font-black text-white uppercase tracking-tighter">Legend</span></div>
+                                        </div>
+                                    ) : (
+                                        <button onClick={() => startAd('today_special')} className="flex-[2.5] bg-white/90 border-2 border-dashed border-indigo-200 rounded-2xl flex items-center justify-center gap-3 px-4 py-3 hover:bg-white hover:border-indigo-500 transition-all relative group shadow-sm active:scale-95">
+                                            <div className="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center group-hover:bg-indigo-600 transition-colors shadow-inner"><ArrowUpCircle className="w-5 h-5 text-indigo-600 group-hover:text-white" /></div>
+                                            <div className="text-left">
+                                                <p className="text-[11px] font-black text-indigo-800 leading-none">2차 운세 강화</p>
+                                                <p className="text-[8px] text-gray-400 font-bold mt-1 leading-tight break-keep">레어 스티커로 업그레이드하기</p>
+                                            </div>
+                                            <PointBadge amount={2} className="!top-[-5px] !right-[-5px]" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             ) : (
               dateInfo.isFuture ? (
                 <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2.5rem] p-8 text-white relative overflow-hidden shadow-lg animate-in zoom-in duration-300">
                   <div className="relative z-10 space-y-6">
-                    <div><h4 className="font-bold text-xl flex items-center gap-2">미래 행운 열기 <Sparkles className="w-5 h-5 opacity-50" /></h4><p className="text-sm opacity-80 mt-1 leading-relaxed text-indigo-50 break-keep">남들보다 먼저 {selectedDateKey.split('-')[2]}일의 행운을 잡으세요.</p></div>
+                    <div>
+                      <h4 className="font-bold text-xl flex items-center gap-2">미래 행운 열기 <Sparkles className="w-5 h-5 opacity-50" /></h4>
+                      <p className="text-sm opacity-80 mt-1 leading-relaxed text-indigo-50 break-keep">남들보다 먼저 {selectedDateKey.split('-')[2]}일의 행운을 잡으세요.</p>
+                      {!dateInfo.canPreviewWeather && (
+                        <p className="text-[11px] text-indigo-100/80 font-bold mt-3 break-keep">날씨는 오늘부터 3일 뒤까지만 함께 제공돼요.</p>
+                      )}
+                    </div>
                     <button onClick={() => startAd('future_preview')} className="w-full bg-white text-indigo-700 py-5 rounded-2xl font-black text-sm flex items-center justify-center relative shadow-xl active:scale-95 transition-all">{getFutureButtonText}<PointBadge /></button>
                   </div>
                   <Sparkles className="absolute -bottom-8 -right-8 w-32 h-32 opacity-10 rotate-12" />
@@ -541,9 +687,9 @@ const App = () => {
       {/* 오버레이 (기록/일정추가/광고/결과) - 기존 완성 버전 유지 */}
       {view === 'recording' && (
         <div className="absolute inset-0 bg-white z-50 flex flex-col p-8 animate-in slide-in-from-bottom duration-300">
-            <div className="flex justify-between items-center mb-10"><button onClick={() => setView('main')} className="p-3 bg-gray-50 rounded-full active:scale-90 transition-all"><X className="w-6 h-6 text-gray-400" /></button><h2 className="text-lg font-black text-gray-800">오늘의 기록</h2><div className="w-12"></div></div>
+            <div className="flex justify-between items-center mb-10"><button onClick={() => { setIsEditingRecord(false); setView('main'); }} className="p-3 bg-gray-50 rounded-full active:scale-90 transition-all"><X className="w-6 h-6 text-gray-400" /></button><h2 className="text-lg font-black text-gray-800">{isEditingRecord ? '기록 수정' : '오늘의 기록'}</h2><div className="w-12"></div></div>
             <div className="space-y-12 flex-1 overflow-y-auto no-scrollbar pb-6">
-                <p className="font-black text-2xl text-center text-gray-800 leading-tight">오늘 기분은 어떠셨나요?</p>
+                <p className="font-black text-2xl text-center text-gray-800 leading-tight">{isEditingRecord ? '기록을 다시 다듬어볼까요?' : '오늘 기분은 어떠셨나요?'}</p>
                 <div className="flex justify-between items-center bg-gray-50 p-6 rounded-[2.5rem] shadow-inner">
                     {['sad_max', 'sad', 'normal', 'happy', 'happy_max'].map(id => (
                         <button key={id} onClick={() => setTempInput({...tempInput, mood: id})} className={`flex flex-col items-center gap-2 transition-all ${tempInput.mood === id ? 'scale-125 z-10' : 'opacity-40 grayscale'}`}>
@@ -553,7 +699,11 @@ const App = () => {
                 </div>
                 <textarea value={tempInput.note} onChange={(e) => setTempInput({...tempInput, note: e.target.value})} placeholder="오늘 하루를 짧게 정리해볼까요?" className="w-full h-44 p-6 rounded-[2rem] bg-gray-50 border-none text-sm resize-none shadow-inner focus:ring-2 focus:ring-blue-500" />
             </div>
-            <button onClick={() => startAd(dateInfo.isFuture ? 'future_preview' : 'today')} className="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-bold relative shadow-xl active:scale-95 transition-all">기록 완료하고 보상 받기 <PointBadge /></button>
+            {isEditingRecord ? (
+              <button onClick={handleSaveRecordEdit} disabled={!canSubmitTodayRecord} className={`w-full py-5 rounded-[2rem] font-bold shadow-xl transition-all ${canSubmitTodayRecord ? 'bg-blue-600 text-white active:scale-95' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>수정 저장하기</button>
+            ) : (
+              <button disabled={!canSubmitTodayRecord} onClick={() => startAd(dateInfo.isFuture ? 'future_preview' : 'today')} className={`w-full py-5 rounded-[2rem] font-bold relative shadow-xl transition-all ${canSubmitTodayRecord ? 'bg-blue-600 text-white active:scale-95' : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'}`}>{canSubmitTodayRecord ? <>기록 완료하고 보상 받기 <PointBadge /></> : '기분을 선택해주세요'}</button>
+            )}
         </div>
       )}
 
@@ -621,6 +771,12 @@ const App = () => {
                 <p className="text-[10px] font-black text-blue-500 mb-2 uppercase tracking-widest flex items-center gap-1"><Sparkles className="w-3 h-3" /> Information</p>
                 <p className="text-[13px] font-bold italic text-blue-900 leading-relaxed break-keep">{"\"" + (lastReward.desc || "") + "\""}</p>
               </div>
+              {lastReward.weather && (
+                <div className="rounded-[2rem] p-4 bg-sky-50 border border-sky-100 text-left shadow-inner">
+                  <p className="text-[10px] font-black text-sky-500 mb-2 uppercase tracking-widest">Weather</p>
+                  <p className="text-sm font-black text-sky-900">{lastReward.weather}</p>
+                </div>
+              )}
               <div className={`rounded-[2.5rem] p-5 flex justify-between items-center px-8 border-2 border-yellow-100 shadow-sm transition-all ${lastReward.amount > 1 ? 'bg-orange-50 border-orange-200' : 'bg-yellow-50'}`}>
                 <div className="text-left"><p className={`text-[10px] font-black uppercase ${lastReward.amount > 1 ? 'text-orange-600' : 'text-yellow-600'}`}>Reward</p><p className={`text-2xl font-black ${lastReward.amount > 1 ? 'text-orange-700' : 'text-yellow-700'}`}>+{lastReward.amount}P</p></div><Trophy className={`${lastReward.amount > 1 ? 'text-orange-500' : 'text-yellow-500'} w-10 h-10`} />
               </div>
