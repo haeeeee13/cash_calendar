@@ -13,18 +13,6 @@ python3 -m http.server 4173
 브라우저에서 `http://localhost:4173` 를 열면 됩니다.
 이미 사용 중인 포트라면 `4174` 같은 다른 포트로 바꿔 실행하면 됩니다.
 
-## React Preview
-
-방금 추가한 React 버전 시안은 아래처럼 실행할 수 있습니다.
-
-```bash
-cd /Users/heoh3/Documents/cash/prototype-calendar
-npm install
-npm run dev
-```
-
-브라우저에서 `http://127.0.0.1:4173/react-preview.html` 를 열면 됩니다.
-
 정적 빌드 확인이 필요하면 아래도 가능합니다.
 
 ```bash
