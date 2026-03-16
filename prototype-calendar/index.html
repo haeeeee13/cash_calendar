@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lucky Diary Prototype</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bagel+Fat+One&family=Nunito:wght@500;700;800;900&family=Noto+Sans+KR:wght@400;500;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="phone-frame">
+        <div class="app-chrome"></div>
+
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">App-tech Diary</p>
+            <h1>Lucky Diary</h1>
+          </div>
+          <div class="wallet-pill">
+            <span>🪙</span>
+            <strong id="pointBalance">1260P</strong>
+          </div>
+        </header>
+
+        <section class="hero-card">
+          <div class="hero-copy">
+            <p class="eyebrow bright">오늘의 행운 루프</p>
+            <h2>기록, 광고 보상, 스티커 수집이 한 화면에서 이어져요.</h2>
+            <p>
+              오늘의 감정 기록을 남기고 운세와 날씨를 받아보세요. 특별 보상까지 올리면 캘린더 아이콘도
+              업그레이드됩니다.
+            </p>
+          </div>
+          <div class="hero-badges">
+            <span class="hero-badge">🔮 운세</span>
+            <span class="hero-badge">🌤 날씨</span>
+            <span class="hero-badge">👑 레어 스티커</span>
+          </div>
+        </section>
+
+        <section class="panel streak-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Weekly Mission</p>
+              <h3>7일 출석 현황</h3>
+            </div>
+            <div class="bonus-chip" id="bonusChip">3일 보너스 대기</div>
+          </div>
+          <div class="streak-row" id="streakRow"></div>
+          <p class="panel-note">오늘 기록과 광고 시청을 완료하면 즉시 출석 체크가 반영됩니다.</p>
+        </section>
+
+        <section class="panel calendar-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Calendar</p>
+              <h3 id="calendarTitle">2026년 3월</h3>
+            </div>
+            <div class="calendar-nav">
+              <button class="mini-button" id="prevMonthButton" type="button" aria-label="이전 달">‹</button>
+              <button class="mini-button" id="nextMonthButton" type="button" aria-label="다음 달">›</button>
+            </div>
+          </div>
+
+          <div class="weekday-row" id="weekdayRow"></div>
+          <div class="calendar-grid" id="calendarGrid"></div>
+
+          <div class="calendar-legend">
+            <span><i class="legend-dot common"></i> 일반</span>
+            <span><i class="legend-dot rare"></i> 레어/전설</span>
+            <span><i class="legend-dot preview"></i> 미래 미리보기</span>
+          </div>
+        </section>
+
+        <section class="panel record-panel" id="contextPanel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow" id="contextEyebrow">Today</p>
+              <h3 id="contextTitle">오늘의 기록</h3>
+            </div>
+            <span class="date-pill" id="selectedDateLabel"></span>
+          </div>
+
+          <div id="contextBody"></div>
+        </section>
+
+        <section class="panel schedule-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Schedule Cheer</p>
+              <h3>미래 일정 응원받기</h3>
+            </div>
+            <button class="primary-button small" id="openScheduleButton" type="button">+ 일정 등록</button>
+          </div>
+          <div id="scheduleBody"></div>
+        </section>
+      </section>
+    </main>
+
+    <div class="sheet-backdrop hidden" id="overlay">
+      <div class="modal-shell" id="modalShell"></div>
+    </div>
+
+    <template id="dayTemplate">
+      <button class="day-cell" type="button">
+        <span class="day-number"></span>
+        <span class="day-sticker"></span>
+        <span class="day-tag"></span>
+      </button>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
