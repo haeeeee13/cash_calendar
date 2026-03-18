@@ -26,17 +26,10 @@ const App = () => {
     { icon: '💼', label: '미팅·업무' }, { icon: '✈️', label: '여행·나들이' },
     { icon: '💪', label: '공부·운동' }, { icon: '✨', label: '소소한 일상' }
   ];
-  const weatherByOffset = {
-    0: '☀️ 맑음, 15°C',
-    1: '🌤️ 구름조금, 16°C',
-    2: '⛅ 흐림, 14°C',
-    3: '🌦️ 봄비, 13°C',
-  };
 
   // 1. 상태 관리
   const [points, setPoints] = useState(1250);
   const [view, setView] = useState('main'); 
-  const [activeTab, setActiveTab] = useState('캘린더');
   const [calendarMode, setCalendarMode] = useState('week'); 
   
   const [currentYear, setCurrentYear] = useState(fixedToday.year);
@@ -51,8 +44,8 @@ const App = () => {
   
   // [초기 데이터]
   const [allRecords, setAllRecords] = useState({
-    '2026-03-09': { mood: 'normal', note: '평범한 월요일의 시작.', fortune: '차분하게 시작하는 것이 좋습니다.', recorded: true, specialClaimed: false, sticker: '🍀', weather: '☀️ 맑음' },
-    '2026-03-11': { mood: 'happy_max', note: '레어 스티커를 뽑았다!', fortune: '당신의 밝은 기운이 주변을 비춥니다.', recorded: true, specialClaimed: true, sticker: '🍀', specialSticker: '👑', weather: '☁️ 구름조금' }
+    '2026-03-09': { mood: 'normal', note: '평범한 월요일의 시작.', fortune: '차분하게 시작하는 것이 좋습니다.', recorded: true, specialClaimed: false, sticker: '🍀' },
+    '2026-03-11': { mood: 'happy_max', note: '레어 스티커를 뽑았다!', fortune: '당신의 밝은 기운이 주변을 비춥니다.', recorded: true, specialClaimed: true, sticker: '🍀', specialSticker: '👑' }
   });
 
   const [allSchedules, setAllSchedules] = useState({
@@ -85,7 +78,6 @@ const App = () => {
       isPast: sel < tod,
       isFuture: sel > tod,
       diffDays,
-      canPreviewWeather: diffDays >= 0 && diffDays <= 3,
     };
   }, [selectedDateKey, todayKey]);
 
@@ -147,29 +139,12 @@ const App = () => {
   const getFutureButtonText = useMemo(() => {
     const sel = new Date(selectedDateKey);
     const diffDays = dateInfo.diffDays;
-    const suffix = dateInfo.canPreviewWeather ? '운세와 날씨 무료 확인' : '운세 무료 확인';
-    if (diffDays === 1) return `내일 ${suffix}`;
-    if (diffDays === 2) return `모레 ${suffix}`;
-    return `${sel.getMonth() + 1}월 ${sel.getDate()}일 ${suffix}`;
-  }, [dateInfo.canPreviewWeather, dateInfo.diffDays, selectedDateKey]);
-
-  const getWeatherForDate = (dateKey) => {
-    const sel = new Date(dateKey);
-    const tod = new Date(todayKey);
-    sel.setHours(0,0,0,0);
-    tod.setHours(0,0,0,0);
-    const diffDays = Math.round((sel.getTime() - tod.getTime()) / (1000 * 60 * 60 * 24));
-    return weatherByOffset[diffDays] || '🌥️ 날씨 준비중';
-  };
+    if (diffDays === 1) return '내일 운세 무료 확인';
+    if (diffDays === 2) return '모레 운세 무료 확인';
+    return `${sel.getMonth() + 1}월 ${sel.getDate()}일 운세 무료 확인`;
+  }, [dateInfo.diffDays, selectedDateKey]);
 
   // 핸들러
-  const handleTabClick = (tab) => {
-    if (tab !== '캘린더') {
-      setPreparingMsg(`${tab}은 준비중입니다.`);
-      setTimeout(() => setPreparingMsg(null), 2000);
-    } else { setActiveTab(tab); }
-  };
-
   const closeResult = () => { setView('main'); setLastReward(null); };
 
   const handleCalendarNav = (dir) => {
@@ -276,7 +251,6 @@ const App = () => {
     if (purpose === 'today' || purpose === 'future_preview') {
       setPoints(prev => prev + 1);
       const fortuneMsg = "성실한 당신의 태도가 운을 부르고 있네요.";
-      const weather = dateInfo.canPreviewWeather ? getWeatherForDate(selectedDateKey) : null;
       setAllRecords(prev => ({ 
         ...prev, 
         [selectedDateKey]: {
@@ -287,10 +261,9 @@ const App = () => {
           recorded: true,
           previewOnly: purpose === 'future_preview',
           sticker: randomItem,
-          weather
         } 
       }));
-      setLastReward({ type: 'today_summary', amount: 1, item: randomItem, title: '보상 도착!', desc: fortuneMsg, canUpgrade: true, weather });
+      setLastReward({ type: 'today_summary', amount: 1, item: randomItem, title: '보상 도착!', desc: fortuneMsg, canUpgrade: true });
       if (purpose === 'today' && dateInfo.isToday) setStreak([true, true, true, false, false, false, false]);
     } else if (purpose === 'today_special') {
       setPoints(prev => prev + 2);
@@ -326,9 +299,9 @@ const App = () => {
     }
   };
 
-  const PointBadge = ({ amount = 1, className = "" }) => (
+  const PointBadge = ({ className = "" }) => (
     <div className={`absolute -top-2 -right-2 bg-red-500 text-white text-[8px] font-black px-1.5 py-0.5 rounded-full shadow-md animate-bounce flex items-center gap-0.5 z-10 border border-white/20 ${className}`}>
-        <Star className="w-2 h-2 fill-white" /> +{amount}P
+        <Star className="w-2 h-2 fill-white" /> 적립
     </div>
   );
 
@@ -355,15 +328,8 @@ const App = () => {
       <header className="bg-white sticky top-0 z-30 shadow-sm">
         <div className="px-4 py-3 flex justify-between items-center border-b border-gray-50">
             <div className="flex items-center gap-2"><ChevronLeft className="w-6 h-6 text-gray-400" /><h1 className="text-lg font-bold text-gray-800 tracking-tight">럭키 다이어리</h1></div>
-            <div className="flex items-center gap-3"><User className="w-6 h-6 text-gray-400" /><div className="bg-yellow-100 px-3 py-1 rounded-full flex items-center gap-1 border border-yellow-200"><Star className="w-4 h-4 text-yellow-500 fill-yellow-500" /><span className="text-sm font-black text-yellow-700">{points.toLocaleString()}P</span></div></div>
+            <div className="flex items-center justify-end"><User className="w-6 h-6 text-gray-400" /></div>
         </div>
-        <nav className="flex px-4 pt-2">
-            {['캘린더', '럭키 아이템', '데일리 타로'].map(tab => (
-                <button key={tab} onClick={() => handleTabClick(tab)} className={`flex-1 py-3 text-sm font-bold transition-all relative ${activeTab === tab ? 'text-blue-600' : 'text-gray-400'}`}>
-                    {tab}{activeTab === tab && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-600 rounded-full"></div>}
-                </button>
-            ))}
-        </nav>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 space-y-6 pb-16 no-scrollbar">
@@ -530,7 +496,6 @@ const App = () => {
                             <div className="flex justify-between items-center mb-1">
                               <p className="text-[10px] font-black text-gray-300 uppercase tracking-tighter">Diary Log</p>
                               <div className="flex items-center gap-2">
-                                {currentRecord.weather && <span className="text-[10px] font-bold text-gray-400 italic">{currentRecord.weather}</span>}
                                 <button onClick={() => handleOpenRecording(true)} className="w-8 h-8 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400 active:scale-95 transition-all">
                                   <Edit3 className="w-3.5 h-3.5" />
                                 </button>
@@ -581,7 +546,6 @@ const App = () => {
                         <div className="flex-1">
                             <div className="flex justify-between items-center mb-1">
                               <p className="text-[10px] font-black text-indigo-300 uppercase tracking-tighter">Fortune Preview</p>
-                              {currentRecord.weather && <span className="text-[10px] font-bold text-indigo-400 italic">{currentRecord.weather}</span>}
                             </div>
                             <p className="text-sm text-gray-600 leading-relaxed break-keep">미리 확인한 운세가 표시되고 있어요.</p>
                         </div>
@@ -625,9 +589,6 @@ const App = () => {
                     <div>
                       <h4 className="font-bold text-xl flex items-center gap-2">미래 행운 열기 <Sparkles className="w-5 h-5 opacity-50" /></h4>
                       <p className="text-sm opacity-80 mt-1 leading-relaxed text-indigo-50 break-keep">남들보다 먼저 {selectedDateKey.split('-')[2]}일의 행운을 잡으세요.</p>
-                      {!dateInfo.canPreviewWeather && (
-                        <p className="text-[11px] text-indigo-100/80 font-bold mt-3 break-keep">날씨는 오늘부터 3일 뒤까지만 함께 제공돼요.</p>
-                      )}
                     </div>
                     <button onClick={() => startAd('future_preview')} className="w-full bg-white text-indigo-700 py-5 rounded-2xl font-black text-sm flex items-center justify-center relative shadow-xl active:scale-95 transition-all">{getFutureButtonText}<PointBadge /></button>
                   </div>
@@ -797,12 +758,6 @@ const App = () => {
                 <p className="text-[10px] font-black text-blue-500 mb-2 uppercase tracking-widest flex items-center gap-1"><Sparkles className="w-3 h-3" /> Information</p>
                 <p className="text-[13px] font-bold italic text-blue-900 leading-relaxed break-keep">{"\"" + (lastReward.desc || "") + "\""}</p>
               </div>
-              {lastReward.weather && (
-                <div className="rounded-[2rem] p-4 bg-sky-50 border border-sky-100 text-left shadow-inner">
-                  <p className="text-[10px] font-black text-sky-500 mb-2 uppercase tracking-widest">Weather</p>
-                  <p className="text-sm font-black text-sky-900">{lastReward.weather}</p>
-                </div>
-              )}
               <div className={`rounded-[2.5rem] p-5 flex justify-between items-center px-8 border-2 border-yellow-100 shadow-sm transition-all ${lastReward.amount > 1 ? 'bg-orange-50 border-orange-200' : 'bg-yellow-50'}`}>
                 <div className="text-left"><p className={`text-[10px] font-black uppercase ${lastReward.amount > 1 ? 'text-orange-600' : 'text-yellow-600'}`}>Reward</p><p className={`text-2xl font-black ${lastReward.amount > 1 ? 'text-orange-700' : 'text-yellow-700'}`}>+{lastReward.amount}P</p></div><Trophy className={`${lastReward.amount > 1 ? 'text-orange-500' : 'text-yellow-500'} w-10 h-10`} />
               </div>
