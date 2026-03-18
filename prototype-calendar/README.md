@@ -13,6 +13,15 @@ python3 -m http.server 4173
 브라우저에서 `http://localhost:4173` 를 열면 됩니다.
 이미 사용 중인 포트라면 `4174` 같은 다른 포트로 바꿔 실행하면 됩니다.
 
+## Multiple Pages
+
+같은 저장소 안에서 두 개의 페이지를 함께 운영할 수 있도록 설정되어 있습니다.
+
+- 기본 버전: `http://127.0.0.1:4173/cash_calendar/`
+- 다른 버전: `http://127.0.0.1:4173/cash_calendar/variant-b/`
+
+`variant-b/VariantApp.jsx`를 수정하면 메인 버전과 별도로 다른 시안을 만들 수 있습니다.
+
 정적 빌드 확인이 필요하면 아래도 가능합니다.
 
 ```bash
